@@ -1,0 +1,220 @@
+version: '3.8'
+
+# Deluthium Ecosystem Hub - Docker Compose
+# One-click deployment for all Deluthium integrations
+#
+# Usage:
+#   export DELUTHIUM_JWT="your-jwt-token"
+#   docker-compose up -d
+#
+# Or start specific services:
+#   docker-compose up -d ccxt hummingbot
+
+services:
+  # ============================================
+  # CCXT Development Environment
+  # Multi-language support: Python, TypeScript, PHP
+  # ============================================
+  ccxt:
+    image: deluthium/ccxt:latest
+    build:
+      context: ./docker/ccxt
+      dockerfile: Dockerfile
+    container_name: deluthium-ccxt
+    environment:
+      - DELUTHIUM_JWT=${DELUTHIUM_JWT}
+      - DELUTHIUM_CHAIN_ID=${DELUTHIUM_CHAIN_ID:-56}
+      - DELUTHIUM_SLIPPAGE=${DELUTHIUM_SLIPPAGE:-0.5}
+    volumes:
+      - ./examples/ccxt:/app/user-scripts
+    stdin_open: true
+    tty: true
+    networks:
+      - deluthium-network
+
+  # ============================================
+  # Hummingbot Trading Bot
+  # Algorithmic trading with Deluthium connector
+  # ============================================
+  hummingbot:
+    image: deluthium/hummingbot:latest
+    build:
+      context: ./docker/hummingbot
+      dockerfile: Dockerfile
+    container_name: deluthium-hummingbot
+    environment:
+      - DELUTHIUM_JWT=${DELUTHIUM_JWT}
+      - DELUTHIUM_CHAIN_ID=${DELUTHIUM_CHAIN_ID:-56}
+      - DELUTHIUM_WALLET_ADDRESS=${DELUTHIUM_WALLET_ADDRESS}
+    volumes:
+      - ./data/hummingbot/conf:/conf
+      - ./data/hummingbot/logs:/logs
+      - ./data/hummingbot/data:/data
+      - ./data/hummingbot/scripts:/scripts
+    stdin_open: true
+    tty: true
+    networks:
+      - deluthium-network
+
+  # ============================================
+  # 0x Protocol Adapter
+  # Translates 0x v4 RFQ orders to DarkPool format
+  # ============================================
+  0x-adapter:
+    image: deluthium/0x-adapter:latest
+    build:
+      context: ./docker/0x-adapter
+      dockerfile: Dockerfile
+    container_name: deluthium-0x-adapter
+    ports:
+      - "${ZEROX_PORT:-3001}:3000"
+    environment:
+      - DELUTHIUM_JWT=${DELUTHIUM_JWT}
+      - CHAIN_ID=${DELUTHIUM_CHAIN_ID:-56}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - deluthium-network
+
+  # ============================================
+  # 1inch Limit Order Adapter
+  # Production-ready adapter for 1inch integration
+  # ============================================
+  1inch-adapter:
+    image: deluthium/1inch-adapter:latest
+    build:
+      context: ./docker/1inch-adapter
+      dockerfile: Dockerfile
+    container_name: deluthium-1inch-adapter
+    ports:
+      - "${ONEINCH_PORT:-3002}:3000"
+    environment:
+      - DELUTHIUM_JWT=${DELUTHIUM_JWT}
+      - CHAIN_ID=${DELUTHIUM_CHAIN_ID:-56}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      # Optional: AWS KMS for production signing
+      - AWS_REGION=${AWS_REGION:-}
+      - AWS_KMS_KEY_ID=${AWS_KMS_KEY_ID:-}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - deluthium-network
+
+  # ============================================
+  # Market Maker Example (Go)
+  # WebSocket-based quote provider reference
+  # ============================================
+  mm-example:
+    image: deluthium/mm-example:latest
+    build:
+      context: ./docker/mm-example
+      dockerfile: Dockerfile
+    container_name: deluthium-mm-example
+    environment:
+      - DELUTHIUM_JWT=${DELUTHIUM_JWT}
+      - WS_URL=${WS_URL:-wss://mmhub.deluthium.ai/ws}
+      - CHAIN_ID=${DELUTHIUM_CHAIN_ID:-56}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - ./data/mm-example/configs:/app/configs
+    restart: unless-stopped
+    networks:
+      - deluthium-network
+
+  # ============================================
+  # Market Maker Portal (Frontend)
+  # Dashboard for API monitoring and incentives
+  # ============================================
+  portal:
+    image: deluthium/portal:latest
+    build:
+      context: ./portal
+      dockerfile: Dockerfile
+    container_name: deluthium-portal
+    ports:
+      - "${PORTAL_PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=${API_MONITOR_URL:-http://api-monitor:4000}
+    depends_on:
+      - api-monitor
+    restart: unless-stopped
+    networks:
+      - deluthium-network
+
+  # ============================================
+  # API Monitor Service
+  # Health checks, latency tracking, and metrics
+  # ============================================
+  api-monitor:
+    image: deluthium/api-monitor:latest
+    build:
+      context: ./api-monitor
+      dockerfile: Dockerfile
+    container_name: deluthium-api-monitor
+    ports:
+      - "${API_MONITOR_PORT:-4000}:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - DELUTHIUM_JWT=${DELUTHIUM_JWT}
+      - REST_API_URL=${REST_API_URL:-https://rfq-api.deluthium.ai}
+      - WS_URL=${WS_URL:-wss://mmhub.deluthium.ai/ws}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/deluthium}
+    depends_on:
+      - redis
+      - postgres
+    restart: unless-stopped
+    networks:
+      - deluthium-network
+
+  # ============================================
+  # Redis (Caching)
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: deluthium-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - deluthium-network
+
+  # ============================================
+  # PostgreSQL (Database)
+  # ============================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: deluthium-postgres
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-deluthium}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - deluthium-network
+
+networks:
+  deluthium-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  postgres-data:
