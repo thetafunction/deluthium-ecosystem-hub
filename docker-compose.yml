@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Deluthium Ecosystem Hub - Docker Compose
 # One-click deployment for all Deluthium integrations
 #
@@ -7,8 +5,12 @@ version: '3.8'
 #   export DELUTHIUM_JWT="your-jwt-token"
 #   docker-compose up -d
 #
-# Or start specific services:
-#   docker-compose up -d ccxt hummingbot
+# Or use profiles:
+#   docker-compose --profile portal up -d      # Portal + monitoring
+#   docker-compose --profile trading up -d     # Trading bots
+#   docker-compose --profile adapters up -d    # Protocol adapters
+#   docker-compose --profile mm up -d          # Market maker tools
+#   docker-compose --profile all up -d         # Everything
 
 services:
   # ============================================
@@ -21,6 +23,7 @@ services:
       context: ./docker/ccxt
       dockerfile: Dockerfile
     container_name: deluthium-ccxt
+    profiles: ["dev", "all"]
     environment:
       - DELUTHIUM_JWT=${DELUTHIUM_JWT}
       - DELUTHIUM_CHAIN_ID=${DELUTHIUM_CHAIN_ID:-56}
@@ -50,6 +53,7 @@ services:
       context: ./docker/hummingbot
       dockerfile: Dockerfile
     container_name: deluthium-hummingbot
+    profiles: ["trading", "all"]
     environment:
       - DELUTHIUM_JWT=${DELUTHIUM_JWT}
       - DELUTHIUM_CHAIN_ID=${DELUTHIUM_CHAIN_ID:-56}
@@ -82,6 +86,7 @@ services:
       context: ./docker/0x-adapter
       dockerfile: Dockerfile
     container_name: deluthium-0x-adapter
+    profiles: ["adapters", "all"]
     ports:
       - "${ZEROX_PORT:-3001}:3000"
     environment:
@@ -115,6 +120,7 @@ services:
       context: ./docker/1inch-adapter
       dockerfile: Dockerfile
     container_name: deluthium-1inch-adapter
+    profiles: ["adapters", "all"]
     ports:
       - "${ONEINCH_PORT:-3002}:3000"
     environment:
@@ -151,6 +157,7 @@ services:
       context: ./docker/mm-example
       dockerfile: Dockerfile
     container_name: deluthium-mm-example
+    profiles: ["mm", "all"]
     environment:
       - DELUTHIUM_JWT=${DELUTHIUM_JWT}
       - WS_URL=${WS_URL:-wss://mmhub.deluthium.ai/ws}
@@ -180,6 +187,7 @@ services:
       context: ./docker/hummingbot-mm
       dockerfile: Dockerfile
     container_name: deluthium-hummingbot-mm
+    profiles: ["mm", "all"]
     environment:
       - DELUTHIUM_JWT=${DELUTHIUM_JWT}
       - MM_SIGNER_KEY=${MM_SIGNER_KEY}
@@ -215,6 +223,7 @@ services:
       context: ./portal
       dockerfile: Dockerfile
     container_name: deluthium-portal
+    profiles: ["portal", "all"]
     ports:
       - "${PORTAL_PORT:-3000}:3000"
     environment:
@@ -250,6 +259,7 @@ services:
       context: ./api-monitor
       dockerfile: Dockerfile
     container_name: deluthium-api-monitor
+    profiles: ["portal", "all"]
     ports:
       - "${API_MONITOR_PORT:-4000}:4000"
     environment:
@@ -288,6 +298,7 @@ services:
   redis:
     image: redis:7.2-alpine
     container_name: deluthium-redis
+    profiles: ["portal", "mm", "all"]
     # Security: Don't expose port by default - access via docker network
     # Uncomment for local development only:
     # ports:
@@ -326,6 +337,7 @@ services:
   postgres:
     image: postgres:15.5-alpine
     container_name: deluthium-postgres
+    profiles: ["portal", "all"]
     # Security: Don't expose port by default - access via docker network
     # Uncomment for local development only:
     # ports:
