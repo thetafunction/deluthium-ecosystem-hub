@@ -1,7 +1,7 @@
 # 0x Protocol to Deluthium Adapter
 # Translates 0x v4 RFQ orders to DarkPool format
 
-FROM node:20-alpine AS builder
+FROM node:20.11-alpine AS builder
 
 WORKDIR /app
 
@@ -19,7 +19,7 @@ COPY tsconfig.json ./
 RUN npm run build
 
 # Production image
-FROM node:20-alpine AS production
+FROM node:20.11-alpine AS production
 
 WORKDIR /app
 

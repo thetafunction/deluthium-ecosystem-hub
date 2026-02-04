@@ -1,7 +1,7 @@
 # Portal Frontend Dockerfile
 # Next.js production build with standalone output
 
-FROM node:20-alpine AS deps
+FROM node:20.11-alpine AS deps
 WORKDIR /app
 
 # Copy package files
@@ -11,7 +11,7 @@ COPY package*.json ./
 RUN npm ci
 
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:20.11-alpine AS builder
 WORKDIR /app
 
 # Copy dependencies
@@ -23,7 +23,7 @@ ENV NEXT_TELEMETRY_DISABLED 1
 RUN npm run build
 
 # Production image
-FROM node:20-alpine AS runner
+FROM node:20.11-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV production

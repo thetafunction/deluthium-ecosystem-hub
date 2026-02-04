@@ -1,7 +1,9 @@
 # Hummingbot with Deluthium Connector
 # Based on official Hummingbot image with Deluthium configuration
 
-FROM hummingbot/hummingbot:latest
+# Pin to specific version for reproducibility
+# Check https://hub.docker.com/r/hummingbot/hummingbot/tags for latest version
+FROM hummingbot/hummingbot:1.28.0
 
 # Set labels
 LABEL maintainer="Deluthium Team"

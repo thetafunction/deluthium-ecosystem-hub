@@ -42,8 +42,8 @@ graph TB
 
 ```bash
 # Clone this repository
-git clone https://github.com/thetafunction/deluthium-Ecosystem-Hub.git
-cd deluthium-Ecosystem-Hub
+git clone https://github.com/thetafunction/deluthium-ecosystem-hub.git
+cd deluthium-ecosystem-hub
 
 # Set your JWT token
 export DELUTHIUM_JWT="your-jwt-token-here"
@@ -148,7 +148,7 @@ cd 1inch-deluthium-adapter && npm install
 ### Option 3: One-Click Script
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/thetafunction/deluthium-Ecosystem-Hub/main/scripts/setup.sh | bash
+curl -sSL https://raw.githubusercontent.com/thetafunction/deluthium-ecosystem-hub/main/scripts/setup.sh | bash
 ```
 
 ---

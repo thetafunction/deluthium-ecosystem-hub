@@ -29,6 +29,14 @@ services:
       - ./examples/ccxt:/app/user-scripts
     stdin_open: true
     tty: true
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
     networks:
       - deluthium-network
 
@@ -53,6 +61,14 @@ services:
       - ./data/hummingbot/scripts:/scripts
     stdin_open: true
     tty: true
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     networks:
       - deluthium-network
 
@@ -77,6 +93,14 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
     restart: unless-stopped
     networks:
       - deluthium-network
@@ -105,6 +129,14 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
     restart: unless-stopped
     networks:
       - deluthium-network
@@ -126,6 +158,14 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
       - ./data/mm-example/configs:/app/configs
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
     restart: unless-stopped
     networks:
       - deluthium-network
@@ -145,6 +185,20 @@ services:
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=${API_MONITOR_URL:-http://api-monitor:4000}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
     depends_on:
       - api-monitor
     restart: unless-stopped
@@ -169,8 +223,23 @@ services:
       - DELUTHIUM_JWT=${DELUTHIUM_JWT}
       - REST_API_URL=${REST_API_URL:-https://rfq-api.deluthium.ai}
       - WS_URL=${WS_URL:-wss://mmhub.deluthium.ai/ws}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
-      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/deluthium}
+      - REDIS_URL=${REDIS_URL:-redis://:${REDIS_PASSWORD}@redis:6379}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-deluthium}}
+      - API_MONITOR_KEY=${API_MONITOR_KEY}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
     depends_on:
       - redis
       - postgres
@@ -182,13 +251,36 @@ services:
   # Redis (Caching)
   # ============================================
   redis:
-    image: redis:7-alpine
+    image: redis:7.2-alpine
     container_name: deluthium-redis
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
+    # Security: Don't expose port by default - access via docker network
+    # Uncomment for local development only:
+    # ports:
+    #   - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    expose:
+      - "6379"
     volumes:
       - redis-data:/data
-    command: redis-server --appendonly yes
+    # Security: Password authentication and bind to localhost within container
+    command: >
+      redis-server 
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD:-}
+      --bind 0.0.0.0
+      --protected-mode yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-}", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
     restart: unless-stopped
     networks:
       - deluthium-network
@@ -197,16 +289,33 @@ services:
   # PostgreSQL (Database)
   # ============================================
   postgres:
-    image: postgres:15-alpine
+    image: postgres:15.5-alpine
     container_name: deluthium-postgres
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+    # Security: Don't expose port by default - access via docker network
+    # Uncomment for local development only:
+    # ports:
+    #   - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    expose:
+      - "5432"
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_USER=${POSTGRES_USER:?POSTGRES_USER is required}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required - generate with: openssl rand -base64 24}
       - POSTGRES_DB=${POSTGRES_DB:-deluthium}
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
     restart: unless-stopped
     networks:
       - deluthium-network

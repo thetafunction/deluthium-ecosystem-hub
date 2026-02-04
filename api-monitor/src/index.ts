@@ -6,6 +6,7 @@ import { HealthChecker } from './health-checker';
 import { LatencyTracker } from './latency-tracker';
 import { MetricsStore } from './metrics-store';
 import { setupRoutes } from './routes';
+import { apiKeyAuth, rateLimit } from './middleware/auth';
 import cron from 'node-cron';
 
 // Load environment variables
@@ -14,9 +15,11 @@ config();
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Middleware
+// Security Middleware
 app.use(cors());
 app.use(express.json());
+app.use(rateLimit);      // Rate limiting for all requests
+app.use(apiKeyAuth);     // API key authentication (skips public paths)
 
 // Initialize services
 const metricsStore = new MetricsStore({

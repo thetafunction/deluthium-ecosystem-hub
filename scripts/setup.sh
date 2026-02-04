@@ -70,28 +70,107 @@ clone_repo() {
     echo ""
 }
 
+# Securely update a value in .env file
+secure_env_update() {
+    local key="$1"
+    local value="$2"
+    local env_file=".env"
+    local tmp_file
+    tmp_file=$(mktemp)
+    
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        if [[ "$line" =~ ^${key}= ]]; then
+            echo "${key}=${value}" >> "$tmp_file"
+        else
+            echo "$line" >> "$tmp_file"
+        fi
+    done < "$env_file"
+    
+    mv "$tmp_file" "$env_file"
+    chmod 600 "$env_file"
+}
+
 # Configure environment
 configure_env() {
     if [ ! -f ".env" ]; then
         echo "Creating environment configuration..."
         cp .env.example .env
+        chmod 600 .env
         
-        echo -e "${YELLOW}Please edit .env file with your JWT token:${NC}"
-        echo "  nano .env"
+        # Generate secure PostgreSQL password
+        echo "Generating secure database password..."
+        if command -v openssl &> /dev/null; then
+            POSTGRES_PASSWORD=$(openssl rand -base64 24)
+        else
+            POSTGRES_PASSWORD=$(head -c 24 /dev/urandom | base64)
+        fi
+        secure_env_update "POSTGRES_PASSWORD" "$POSTGRES_PASSWORD"
+        echo -e "${GREEN}✓${NC} Database password generated"
+        
+        # Generate API monitor key
+        if command -v openssl &> /dev/null; then
+            API_MONITOR_KEY=$(openssl rand -hex 16)
+        else
+            API_MONITOR_KEY=$(head -c 16 /dev/urandom | xxd -p)
+        fi
+        secure_env_update "API_MONITOR_KEY" "$API_MONITOR_KEY"
+        echo -e "${GREEN}✓${NC} API monitor key generated"
+        
+        # Optionally generate Redis password
+        read -p "Generate Redis password? (recommended for production) (y/n): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            if command -v openssl &> /dev/null; then
+                REDIS_PASSWORD=$(openssl rand -base64 16)
+            else
+                REDIS_PASSWORD=$(head -c 16 /dev/urandom | base64)
+            fi
+            secure_env_update "REDIS_PASSWORD" "$REDIS_PASSWORD"
+            echo -e "${GREEN}✓${NC} Redis password generated"
+        fi
+        
         echo ""
-        echo "Or set it directly:"
-        echo "  export DELUTHIUM_JWT='your-jwt-token'"
+        echo -e "${YELLOW}Please configure your JWT token:${NC}"
         echo ""
         
         read -p "Do you have a JWT token to set now? (y/n): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            read -p "Enter your JWT token: " jwt_token
-            sed -i "s/DELUTHIUM_JWT=.*/DELUTHIUM_JWT=$jwt_token/" .env
+            # Silent input for security
+            echo -n "Enter your JWT token (input hidden): "
+            read -s jwt_token
+            echo  # Newline after silent input
+            
+            # Basic JWT format validation (3 parts separated by dots)
+            if [[ ! "$jwt_token" =~ ^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$ ]]; then
+                echo -e "${YELLOW}WARNING: Token doesn't match typical JWT format (xxx.yyy.zzz).${NC}"
+                echo -e "${YELLOW}Proceeding anyway - this may be intentional.${NC}"
+            fi
+            
+            # Securely update the .env file
+            secure_env_update "DELUTHIUM_JWT" "$jwt_token"
+            
+            # Clear token from shell memory
+            unset jwt_token
+            
             echo -e "${GREEN}✓${NC} JWT token configured"
+        else
+            echo -e "${YELLOW}Remember to set DELUTHIUM_JWT in .env before starting services${NC}"
         fi
     else
-        echo -e "${GREEN}✓${NC} Environment file already exists"
+        echo -e "${YELLOW}Existing .env found.${NC}"
+        read -p "Keep existing config? (y/n): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            # Backup existing config
+            backup_file=".env.backup.$(date +%Y%m%d%H%M%S)"
+            cp .env "$backup_file"
+            echo "Backed up old config to $backup_file"
+            cp .env.example .env
+            chmod 600 .env
+            echo "Created fresh .env - please reconfigure"
+        fi
+        echo -e "${GREEN}✓${NC} Environment file ready"
     fi
     echo ""
 }

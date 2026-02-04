@@ -1,7 +1,7 @@
 # DarkPool Market Maker Example
 # Go-based WebSocket MM reference implementation
 
-FROM golang:1.21-alpine AS builder
+FROM golang:1.21.6-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git protobuf-dev
