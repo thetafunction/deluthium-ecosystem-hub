@@ -1,0 +1,73 @@
+# Deluthium Market Maker Strategy Configuration
+# =============================================
+
+strategy: deluthium_market_making
+version: 1
+
+# Connection Settings
+# -------------------
+chain_id: 56                          # 56 = BSC, 8453 = Base
+ws_url: wss://mmhub.deluthium.ai/ws   # WebSocket hub URL
+
+# Trading Pairs
+# -------------
+# Define pairs you want to market make
+# Use token contract addresses (wrapped for native tokens)
+
+pairs:
+  # WBNB/USDT on BSC
+  - base: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"   # WBNB
+    quote: "0x55d398326f99059fF775485246999027B3197955"  # USDT
+    bid_spread_bps: 30        # 0.30% below mid price
+    ask_spread_bps: 30        # 0.30% above mid price
+    order_amount: "10"        # 10 WBNB per level
+    min_order_size: "0.1"     # Minimum 0.1 WBNB
+    max_order_size: "100"     # Maximum 100 WBNB
+    # Static price for demo - replace with real price source
+    price: "312.50"
+    
+  # ETH/USDT on BSC  
+  - base: "0x2170Ed0880ac9A755fd29B2688956BD959F933F8"   # ETH (BSC)
+    quote: "0x55d398326f99059fF775485246999027B3197955"  # USDT
+    bid_spread_bps: 40
+    ask_spread_bps: 40
+    order_amount: "1"
+    min_order_size: "0.01"
+    max_order_size: "50"
+    price: "2350.00"
+
+# Multi-Level Order Book Example (uncomment to use)
+# -------------------------------------------------
+# pairs:
+#   - base: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
+#     quote: "0x55d398326f99059fF775485246999027B3197955"
+#     levels:
+#       - spread_bps: 20
+#         amount: "5"
+#       - spread_bps: 40
+#         amount: "20"
+#       - spread_bps: 60
+#         amount: "50"
+#     price: "312.50"
+
+# Price Source
+# ------------
+# Options: static, binance, coingecko, custom
+price_source: static
+
+# For custom price source:
+# price_feed_url: "http://your-price-api.com/prices"
+# price_feed_format: "json"
+
+# Risk Management
+# ---------------
+max_position_size: "1000"        # Maximum total position
+quote_timeout_ms: 3000           # Quote response timeout
+enable_auto_rebalance: false     # Auto-rebalance inventory
+
+# Monitoring
+# ----------
+metrics:
+  enabled: true
+  port: 9090
+  path: /metrics

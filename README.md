@@ -76,6 +76,7 @@ Contact the Deluthium team at [https://deluthium.ai](https://deluthium.ai) to ap
 
 | Integration | Description | Language | Docker Image | Documentation |
 |-------------|-------------|----------|--------------|---------------|
+| **Hummingbot MM** | Market making bot with WebSocket connector | Python | `deluthium/hummingbot-mm:latest` | [Hummingbot MM Guide](docs/adapters/HUMMINGBOT.md#market-maker-mode) |
 | **MM Example** | Reference implementation for MMs | Go | `deluthium/mm-example:latest` | [MM Guide](docs/MM_GUIDE.md) |
 | **DeluthiumOracle** | Price oracle for 1inch aggregator | Solidity | N/A (Smart Contract) | [Oracle Guide](docs/adapters/ORACLE.md) |
 

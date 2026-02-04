@@ -171,6 +171,41 @@ services:
       - deluthium-network
 
   # ============================================
+  # Hummingbot Market Maker (Python)
+  # WebSocket-based MM using Hummingbot patterns
+  # ============================================
+  hummingbot-mm:
+    image: deluthium/hummingbot-mm:latest
+    build:
+      context: ./docker/hummingbot-mm
+      dockerfile: Dockerfile
+    container_name: deluthium-hummingbot-mm
+    environment:
+      - DELUTHIUM_JWT=${DELUTHIUM_JWT}
+      - MM_SIGNER_KEY=${MM_SIGNER_KEY}
+      - DELUTHIUM_CHAIN_ID=${DELUTHIUM_CHAIN_ID:-56}
+      - WS_URL=${WS_URL:-wss://mmhub.deluthium.ai/ws}
+    volumes:
+      - ./data/hummingbot-mm/conf:/conf
+      - ./data/hummingbot-mm/logs:/logs
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "python.*main.py"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    restart: unless-stopped
+    networks:
+      - deluthium-network
+
+  # ============================================
   # Market Maker Portal (Frontend)
   # Dashboard for API monitoring and incentives
   # ============================================
